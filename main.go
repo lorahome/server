@@ -21,23 +21,26 @@ func main() {
 	flag.Parse()
 
 	// Load configuration
-	config, err := config.LoadConfigFromFile(*flagConfig)
+	cfg, err := config.LoadConfigFromFile(*flagConfig)
 	if err != nil {
 		glog.Fatalf("Unable to read config file %s: %v", *flagConfig, err)
 	}
 	// Register known devices from config (already been joined)
-	for _, d := range config.Devices {
-		_, err := registry.RegisterDevice(&d)
+	for _, d := range cfg.Devices {
+		_, err := registry.RegisterDevice(d)
 		if err != nil {
 			glog.Fatalf("Unable to register device: %v", err)
 		}
 	}
 
+	cfg.Devices = registry.GetDevicesForConfigSave()
+	config.SaveToFile("zz.yaml", cfg)
+
 	// Start transports
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(1)
-	udp := transport.NewUdpTransport(config)
+	udp := transport.NewUdpTransport(cfg)
 	go func(wg *sync.WaitGroup) {
 		err := udp.Run(ctx)
 		if err != nil {

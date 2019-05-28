@@ -1,19 +1,38 @@
 package devices
 
 import (
-	"github.com/lorahome/server/config"
 	"github.com/lorahome/server/transport"
 )
 
-type DeviceHandler interface {
-	Name() string
-	Url() string
+type CreateFunc func(cfg interface{}) (Device, error)
+
+type Device interface {
+	GetId() uint64
+	GetName() string
+	GetClassName() string
+	GetUrl() string
 	ProcessMessage(source transport.Transport, packet []byte) error
 }
 
-type Device struct {
-	Config  *config.Device
-	Id      uint64
-	Key     []byte
-	Handler DeviceHandler
+type BaseDevice struct {
+	Id        uint64
+	Name      string
+	ClassName string
+	Url       string
+}
+
+func (s *BaseDevice) GetName() string {
+	return s.Name
+}
+
+func (s *BaseDevice) GetClassName() string {
+	return s.ClassName
+}
+
+func (s *BaseDevice) GetId() uint64 {
+	return s.Id
+}
+
+func (s *BaseDevice) GetUrl() string {
+	return s.Url
 }

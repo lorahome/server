@@ -6,18 +6,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Config is top level configuration object
 type Config struct {
-	Devices []Device
+	Devices []interface{}
 	Udp     Udp
 }
 
-type Device struct {
-	Id   string
-	Name string
-	Key  string
-	Url  string
-}
-
+// Udp holds parameters for UDP server
 type Udp struct {
 	Listen        string
 	MaxPacketSize int `yaml:"max_packet_size"`
@@ -29,8 +24,14 @@ func LoadConfigFromFile(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	config := &Config{}
-	err = yaml.UnmarshalStrict(data, config)
+	cfg := &Config{}
+	err = yaml.UnmarshalStrict(data, cfg)
 
-	return config, err
+	return cfg, err
+}
+
+// SaveToFile saves cfg into file fn
+func SaveToFile(fn string, cfg *Config) {
+	data, _ := yaml.Marshal(cfg)
+	ioutil.WriteFile(fn, data, 0644)
 }

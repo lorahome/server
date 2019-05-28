@@ -1,63 +1,58 @@
 package registry
 
 import (
+	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/golang/glog"
-	"github.com/lorahome/server/config"
 	"github.com/lorahome/server/devices"
 	"github.com/lorahome/server/devices/sensor/multisensor"
 )
 
-// device protobuf url -> implementation
-var deviceHandlers = map[string]devices.DeviceHandler{}
+// Map of url -> device creator func
+var deviceClasses = map[string]devices.CreateFunc{}
 
 // device_id -> device
-var deviceList = map[uint64]*devices.Device{}
+var deviceList = map[uint64]devices.Device{}
 
-func RegisterDevice(cfg *config.Device) (*devices.Device, error) {
-	id, err := strconv.ParseUint(cfg.Id, 0, 64)
+func RegisterDevice(cfg interface{}) (devices.Device, error) {
+	// Find device class by URL
+	cfgMap := cfg.(map[interface{}]interface{})
+	url, ok := cfgMap["url"].(string)
+	if !ok {
+		return nil, errors.New("Invalid config: 'url' not found")
+	}
+	// Create instance of device class
+	creator, ok := deviceClasses[url]
+	if !ok {
+		return nil, fmt.Errorf("Unknown device class '%s'", url)
+	}
+	dev, err := creator(cfg)
 	if err != nil {
 		return nil, err
 	}
+	deviceList[dev.GetId()] = dev
+	glog.Infof("Added %s device: %s (%d)", dev.GetClassName(), dev.GetName(), dev.GetId())
 
-	// Is device already registered?
-	if _, ok := deviceList[id]; ok {
-		return nil, fmt.Errorf("Device %s (0x%x) already registered", cfg.Name, cfg.Id)
-	}
-
-	// Find device handler
-	handler, ok := deviceHandlers[cfg.Url]
-	if !ok {
-		return nil, fmt.Errorf("Unknown device handler '%s' for device %s (0x%x)", cfg.Url, cfg.Name, id)
-	}
-
-	// Add new device
-	device := &devices.Device{
-		Id:      id,
-		Config:  cfg,
-		Key:     []byte(cfg.Key),
-		Handler: handler,
-	}
-	deviceList[id] = device
-	glog.Infof("Added device '%s' (0x%x) handled by %s",
-		device.Config.Name, device.Id, device.Handler.Name(),
-	)
-	return device, nil
+	return dev, err
 }
 
-func GetDeviceById(deviceId uint64) *devices.Device {
-	if device, ok := deviceList[deviceId]; ok {
+func GetDeviceById(id uint64) devices.Device {
+	if device, ok := deviceList[id]; ok {
 		return device
 	}
 	return nil
 }
 
-func RegisterDeviceHandler(dev devices.DeviceHandler) {
-	deviceHandlers[dev.Url()] = dev
+func GetDevicesForConfigSave() []interface{} {
+	ret := []interface{}{}
+	for _, dev := range deviceList {
+		ret = append(ret, dev)
+	}
+	return ret
 }
 
 func init() {
-	RegisterDeviceHandler(multisensor.NewMultiSensor())
+	// Register all known devices
+	deviceClasses[multisensor.Url] = multisensor.NewMultiSensor
 }

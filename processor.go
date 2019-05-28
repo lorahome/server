@@ -20,7 +20,7 @@ func processPacket(source transport.Transport, packet []byte) error {
 		return fmt.Errorf("device with id 0x%x does not exist", deviceId)
 	}
 	// Call device handler to process packet
-	return device.Handler.ProcessMessage(source, packet[8:])
+	return device.ProcessMessage(source, packet[8:])
 }
 
 func parseDeviceId(packet []byte) (uint64, error) {
