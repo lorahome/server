@@ -15,7 +15,14 @@ var deviceClasses = map[string]devices.CreateFunc{}
 // device_id -> device
 var deviceList = map[uint64]devices.Device{}
 
+func RegisterDeviceClass(url string, dev devices.CreateFunc) {
+	deviceClasses[url] = dev
+}
+
 func RegisterDevice(cfg interface{}) (devices.Device, error) {
+	if cfg == nil {
+		return nil, errors.New("Invalid config")
+	}
 	// Find device class by URL
 	cfgMap := cfg.(map[interface{}]interface{})
 	url, ok := cfgMap["url"].(string)
@@ -54,5 +61,5 @@ func GetDevicesForConfigSave() []interface{} {
 
 func init() {
 	// Register all known devices
-	deviceClasses[multisensor.Url] = multisensor.NewMultiSensor
+	RegisterDeviceClass(multisensor.Url, multisensor.NewMultiSensor)
 }
