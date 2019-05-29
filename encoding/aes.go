@@ -5,7 +5,6 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
-	"github.com/golang/glog"
 )
 
 // AESencryptCBC encrypts packet with AES-CBC using
@@ -58,7 +57,6 @@ func AESdecryptCBC(key, packet []byte) ([]byte, error) {
 	// First 16 bytes (AES block size) is IV (AES Initial Value)
 	// Also, first byte carries actual payload length
 	iv := packet[:aes.BlockSize]
-	glog.Infof("iv: %v", iv)
 	payloadLen := int(iv[0])
 	// Ensure that payload length is correct: less that packet size - IV
 	if payloadLen > packetLen-aes.BlockSize {
