@@ -10,12 +10,12 @@ import (
 )
 
 // Map of url -> device creator func
-var deviceClasses = map[string]devices.CreateFunc{}
+var deviceClasses = map[string]devices.DeviceCreateFunc{}
 
 // device_id -> device
 var deviceList = map[uint64]devices.Device{}
 
-func RegisterDeviceClass(url string, dev devices.CreateFunc) {
+func RegisterDeviceClass(url string, dev devices.DeviceCreateFunc) {
 	deviceClasses[url] = dev
 }
 

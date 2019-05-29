@@ -16,6 +16,15 @@ import (
 
 var flagConfig = flag.String("config", "config.yaml", "Config filename")
 
+type RuntimeCapabilities struct {
+	udp transport.Transport
+}
+
+func (rc *RuntimeCapabilities) SendPacket(packet []byte) error {
+	// TODO: actual send
+	return nil
+}
+
 func main() {
 	flag.Set("logtostderr", "true")
 	flag.Parse()
@@ -33,16 +42,16 @@ func main() {
 		}
 	}
 
-	cfg.Devices = registry.GetDevicesForConfigSave()
-	config.SaveToFile("zz.yaml", cfg)
-
-	// Start transports
+	// Setup capabilities for devices
+	caps := &RuntimeCapabilities{}
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
+
+	// Start UDP transport
+	caps.udp = transport.NewUdpTransport(cfg)
 	wg.Add(1)
-	udp := transport.NewUdpTransport(cfg)
 	go func(wg *sync.WaitGroup) {
-		err := udp.Run(ctx)
+		err := caps.udp.Run(ctx)
 		if err != nil {
 			glog.Fatalf("UDP failed: %v", err)
 		}
@@ -58,8 +67,8 @@ func main() {
 		// Wait for packet from any transport
 		var err error
 		select {
-		case packet := <-udp.Receive():
-			err = processPacket(udp, packet)
+		case packet := <-caps.udp.Receive():
+			err = processPacket(caps, packet)
 		case sig := <-signalCh:
 			glog.Infof("Got SIG %v", sig)
 			cancel()
@@ -75,3 +84,6 @@ func main() {
 	}
 
 }
+
+// cfg.Devices = registry.GetDevicesForConfigSave()
+// config.SaveToFile("zz.yaml", cfg)

@@ -2,12 +2,12 @@ package multisensor
 
 import (
 	"encoding/hex"
+
 	"github.com/belyalov/OpenIOT-protobufs/go/sensor"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/lorahome/server/devices"
 	"github.com/lorahome/server/encoding"
-	"github.com/lorahome/server/transport"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -39,7 +39,7 @@ func NewMultiSensor(cfg interface{}) (devices.Device, error) {
 	return dev, err
 }
 
-func (s *MultiSensor) ProcessMessage(source transport.Transport, encrypted []byte) error {
+func (s *MultiSensor) ProcessMessage(caps devices.Capabilities, encrypted []byte) error {
 	// Decrypt message
 	glog.Infof("%s: Got %d bytes message", s.Name, len(encrypted))
 	decrypted, err := encoding.AESdecryptCBC(s.keyBytes, encrypted)
@@ -54,6 +54,7 @@ func (s *MultiSensor) ProcessMessage(source transport.Transport, encrypted []byt
 		return err
 	}
 	// TODO: implement something
+	glog.Infof("pb: %+v", ms)
 
 	return nil
 }

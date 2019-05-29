@@ -4,11 +4,11 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/lorahome/server/devices"
 	"github.com/lorahome/server/registry"
-	"github.com/lorahome/server/transport"
 )
 
-func processPacket(source transport.Transport, packet []byte) error {
+func processPacket(caps devices.Capabilities, packet []byte) error {
 	// Parse device id
 	deviceId, err := parseDeviceId(packet)
 	if err != nil {
@@ -20,7 +20,7 @@ func processPacket(source transport.Transport, packet []byte) error {
 		return fmt.Errorf("device with id 0x%x does not exist", deviceId)
 	}
 	// Call device handler to process packet
-	return device.ProcessMessage(source, packet[8:])
+	return device.ProcessMessage(caps, packet[8:])
 }
 
 func parseDeviceId(packet []byte) (uint64, error) {

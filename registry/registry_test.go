@@ -13,7 +13,7 @@ func TestRegistry(t *testing.T) {
 	// Clear registered devices list
 	deviceList = map[uint64]devices.Device{}
 	// Set up one device class - mock
-	deviceClasses = map[string]devices.CreateFunc{
+	deviceClasses = map[string]devices.DeviceCreateFunc{
 		mocks.Url: mocks.NewMockDevice,
 	}
 

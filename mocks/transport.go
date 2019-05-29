@@ -24,7 +24,7 @@ func (m *MockTransport) Receive() <-chan []byte {
 	return m.Ch
 }
 
-func (m *MockTransport) Send(packet []byte) error {
+func (m *MockTransport) SendPacket(packet []byte) error {
 	m.History = append(m.History, packet)
 	return m.Error
 }

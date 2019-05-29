@@ -9,19 +9,19 @@ import (
 	"github.com/lorahome/server/config"
 )
 
-type udpTransport struct {
+type UdpTransport struct {
 	config *config.Udp
 	ch     chan []byte
 }
 
 func NewUdpTransport(config *config.Config) Transport {
-	return &udpTransport{
+	return &UdpTransport{
 		config: &config.Udp,
 		ch:     make(chan []byte, 1),
 	}
 }
 
-func (r *udpTransport) Run(ctx context.Context) error {
+func (r *UdpTransport) Run(ctx context.Context) error {
 	// Create UDP listening socket
 	socket, err := net.ListenPacket("udp", r.config.Listen)
 	if err != nil {
@@ -38,7 +38,7 @@ func (r *udpTransport) Run(ctx context.Context) error {
 	return nil
 }
 
-func (r *udpTransport) serve(ctx context.Context, socket net.PacketConn) {
+func (r *UdpTransport) serve(ctx context.Context, socket net.PacketConn) {
 	buf := make([]byte, r.config.MaxPacketSize)
 	for {
 		n, _, err := socket.ReadFrom(buf)
@@ -53,10 +53,10 @@ func (r *udpTransport) serve(ctx context.Context, socket net.PacketConn) {
 	}
 }
 
-func (r *udpTransport) Receive() <-chan []byte {
+func (r *UdpTransport) Receive() <-chan []byte {
 	return r.ch
 }
 
-func (r *udpTransport) Send([]byte) error {
+func (r *UdpTransport) Send([]byte) error {
 	return nil
 }

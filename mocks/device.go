@@ -2,7 +2,6 @@ package mocks
 
 import (
 	"github.com/lorahome/server/devices"
-	"github.com/lorahome/server/transport"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -28,7 +27,7 @@ func NewMockDevice(cfg interface{}) (devices.Device, error) {
 	return ret, err
 }
 
-func (m *MockDevice) ProcessMessage(source transport.Transport, packet []byte) error {
+func (m *MockDevice) ProcessMessage(caps devices.Capabilities, packet []byte) error {
 	m.ProcessMessageHistory = append(m.ProcessMessageHistory, packet)
 	return m.Error
 }
