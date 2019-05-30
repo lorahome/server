@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"github.com/lorahome/server/config"
 	"github.com/lorahome/server/registry"
 	"github.com/lorahome/server/transport"
 )
@@ -30,7 +29,7 @@ func main() {
 	flag.Parse()
 
 	// Load configuration
-	cfg, err := config.LoadConfigFromFile(*flagConfig)
+	cfg, err := ConfigLoadFromFile(*flagConfig)
 	if err != nil {
 		glog.Fatalf("Unable to read config file %s: %v", *flagConfig, err)
 	}
@@ -48,7 +47,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Start UDP transport
-	caps.udp = transport.NewUdpTransport(cfg)
+	caps.udp, err = transport.NewUdpTransport(cfg.Udp)
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
 		err := caps.udp.Run(ctx)
@@ -86,4 +85,3 @@ func main() {
 }
 
 // cfg.Devices = registry.GetDevicesForConfigSave()
-// config.SaveToFile("zz.yaml", cfg)

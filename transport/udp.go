@@ -2,32 +2,45 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/lorahome/server/config"
+	"github.com/mitchellh/mapstructure"
 )
 
 type UdpTransport struct {
-	config *config.Udp
-	ch     chan []byte
+	Listen        string
+	MaxPacketSize int
+
+	ch chan []byte
 }
 
-func NewUdpTransport(config *config.Config) Transport {
-	return &UdpTransport{
-		config: &config.Udp,
-		ch:     make(chan []byte, 1),
+func NewUdpTransport(cfg interface{}) (Transport, error) {
+	udp := &UdpTransport{
+		ch: make(chan []byte, 1),
 	}
+
+	// Map / verify configuration
+	err := mapstructure.Decode(cfg, udp)
+	if udp.Listen == "" {
+		return nil, errors.New("config parameter udp.listen is required")
+	}
+	if udp.MaxPacketSize == 0 {
+		udp.MaxPacketSize = 1024
+	}
+
+	return udp, err
 }
 
 func (r *UdpTransport) Run(ctx context.Context) error {
 	// Create UDP listening socket
-	socket, err := net.ListenPacket("udp", r.config.Listen)
+	socket, err := net.ListenPacket("udp", r.Listen)
 	if err != nil {
 		return err
 	}
-	glog.Infof("[udp] server started at %s", r.config.Listen)
+	glog.Infof("Server started at %s", r.Listen)
 
 	// Receive packets
 	go r.serve(ctx, socket)
@@ -39,14 +52,15 @@ func (r *UdpTransport) Run(ctx context.Context) error {
 }
 
 func (r *UdpTransport) serve(ctx context.Context, socket net.PacketConn) {
-	buf := make([]byte, r.config.MaxPacketSize)
+	buf := make([]byte, r.MaxPacketSize)
 	for {
 		n, _, err := socket.ReadFrom(buf)
 		if err != nil {
+			// Terminate goroutine when listener closed
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				return
 			}
-			glog.Infof("[udp] readFrom failed: %v", err)
+			glog.Infof("readFrom failed: %v", err)
 			continue
 		}
 		r.ch <- buf[:n]
