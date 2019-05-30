@@ -1,31 +1,32 @@
-package registry
+package devices
 
 import (
 	"testing"
 
-	"github.com/lorahome/server/devices"
-	"github.com/lorahome/server/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testUrl = "testUrl"
+)
+
 func TestRegistry(t *testing.T) {
-	// Clear registered devices list
-	deviceList = map[uint64]devices.Device{}
 	// Set up one device class - mock
-	deviceClasses = map[string]devices.DeviceCreateFunc{
-		mocks.Url: mocks.NewMockDevice,
+	deviceClasses = map[string]DeviceCreateFunc{
+		testUrl: NewMockDevice,
 	}
 
 	// Add Mock device
+	deviceList = map[uint64]Device{}
 	cfg := map[interface{}]interface{}{
 		"id":  123,
-		"url": mocks.Url,
+		"url": testUrl,
 	}
 	dev, err := RegisterDevice(cfg)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(123), dev.GetId())
-	assert.Equal(t, mocks.Url, dev.GetUrl())
+	assert.Equal(t, testUrl, dev.GetUrl())
 
 	// Find device by id
 	res := GetDeviceById(123)

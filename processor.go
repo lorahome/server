@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/lorahome/server/devices"
-	"github.com/lorahome/server/registry"
 )
 
 func processPacket(caps devices.Capabilities, packet []byte) error {
@@ -15,7 +14,7 @@ func processPacket(caps devices.Capabilities, packet []byte) error {
 		return err
 	}
 	// Lookup for device handler
-	device := registry.GetDeviceById(deviceId)
+	device := devices.GetDeviceById(deviceId)
 	if device == nil {
 		return fmt.Errorf("device with id 0x%x does not exist", deviceId)
 	}

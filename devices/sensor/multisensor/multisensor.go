@@ -58,3 +58,7 @@ func (s *MultiSensor) ProcessMessage(caps devices.Capabilities, encrypted []byte
 
 	return nil
 }
+
+func init() {
+	devices.RegisterDeviceClass(Url, NewMultiSensor)
+}

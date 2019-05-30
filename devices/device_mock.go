@@ -1,7 +1,6 @@
-package mocks
+package devices
 
 import (
-	"github.com/lorahome/server/devices"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -11,13 +10,13 @@ const (
 )
 
 type MockDevice struct {
-	devices.BaseDevice `yaml:",inline" mapstructure:",squash"`
+	BaseDevice `yaml:",inline" mapstructure:",squash"`
 
 	ProcessMessageHistory [][]byte
 	Error                 error
 }
 
-func NewMockDevice(cfg interface{}) (devices.Device, error) {
+func NewMockDevice(cfg interface{}) (Device, error) {
 	ret := &MockDevice{}
 	ret.Url = Url
 	ret.ClassName = ClassName
@@ -27,7 +26,7 @@ func NewMockDevice(cfg interface{}) (devices.Device, error) {
 	return ret, err
 }
 
-func (m *MockDevice) ProcessMessage(caps devices.Capabilities, packet []byte) error {
+func (m *MockDevice) ProcessMessage(caps Capabilities, packet []byte) error {
 	m.ProcessMessageHistory = append(m.ProcessMessageHistory, packet)
 	return m.Error
 }

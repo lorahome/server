@@ -1,25 +1,23 @@
-package registry
+package devices
 
 import (
 	"errors"
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/lorahome/server/devices"
-	"github.com/lorahome/server/devices/sensor/multisensor"
 )
 
 // Map of url -> device creator func
-var deviceClasses = map[string]devices.DeviceCreateFunc{}
+var deviceClasses = map[string]DeviceCreateFunc{}
 
-// device_id -> device
-var deviceList = map[uint64]devices.Device{}
+// deviceId -> device
+var deviceList = map[uint64]Device{}
 
-func RegisterDeviceClass(url string, dev devices.DeviceCreateFunc) {
+func RegisterDeviceClass(url string, dev DeviceCreateFunc) {
 	deviceClasses[url] = dev
 }
 
-func RegisterDevice(cfg interface{}) (devices.Device, error) {
+func RegisterDevice(cfg interface{}) (Device, error) {
 	if cfg == nil {
 		return nil, errors.New("Invalid config")
 	}
@@ -44,22 +42,9 @@ func RegisterDevice(cfg interface{}) (devices.Device, error) {
 	return dev, err
 }
 
-func GetDeviceById(id uint64) devices.Device {
+func GetDeviceById(id uint64) Device {
 	if device, ok := deviceList[id]; ok {
 		return device
 	}
 	return nil
-}
-
-func GetDevicesForConfigSave() []interface{} {
-	ret := []interface{}{}
-	for _, dev := range deviceList {
-		ret = append(ret, dev)
-	}
-	return ret
-}
-
-func init() {
-	// Register all known devices
-	RegisterDeviceClass(multisensor.Url, multisensor.NewMultiSensor)
 }

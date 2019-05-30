@@ -9,14 +9,17 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"github.com/lorahome/server/registry"
+	"github.com/lorahome/server/devices"
 	"github.com/lorahome/server/transport"
+
+	// Link these devices into server app
+	_ "github.com/lorahome/server/devices/sensor/multisensor"
 )
 
 var flagConfig = flag.String("config", "config.yaml", "Config filename")
 
 type RuntimeCapabilities struct {
-	udp transport.Transport
+	udp transport.LoRaTransport
 }
 
 func (rc *RuntimeCapabilities) SendPacket(packet []byte) error {
@@ -35,7 +38,7 @@ func main() {
 	}
 	// Register known devices from config (already been joined)
 	for _, d := range cfg.Devices {
-		_, err := registry.RegisterDevice(d)
+		_, err := devices.RegisterDevice(d)
 		if err != nil {
 			glog.Fatalf("Unable to register device: %v", err)
 		}
@@ -47,7 +50,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Start UDP transport
-	caps.udp, err = transport.NewUdpTransport(cfg.Udp)
+	caps.udp, err = transport.NewLoRaUdp(cfg.Udp)
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
 		err := caps.udp.Run(ctx)

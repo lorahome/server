@@ -10,15 +10,15 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-type UdpTransport struct {
+type LoRaUdp struct {
 	Listen        string
 	MaxPacketSize int
 
 	ch chan []byte
 }
 
-func NewUdpTransport(cfg interface{}) (Transport, error) {
-	udp := &UdpTransport{
+func NewLoRaUdp(cfg interface{}) (LoRaTransport, error) {
+	udp := &LoRaUdp{
 		ch: make(chan []byte, 1),
 	}
 
@@ -34,7 +34,7 @@ func NewUdpTransport(cfg interface{}) (Transport, error) {
 	return udp, err
 }
 
-func (r *UdpTransport) Run(ctx context.Context) error {
+func (r *LoRaUdp) Run(ctx context.Context) error {
 	// Create UDP listening socket
 	socket, err := net.ListenPacket("udp", r.Listen)
 	if err != nil {
@@ -51,7 +51,7 @@ func (r *UdpTransport) Run(ctx context.Context) error {
 	return nil
 }
 
-func (r *UdpTransport) serve(ctx context.Context, socket net.PacketConn) {
+func (r *LoRaUdp) serve(ctx context.Context, socket net.PacketConn) {
 	buf := make([]byte, r.MaxPacketSize)
 	for {
 		n, _, err := socket.ReadFrom(buf)
@@ -67,10 +67,10 @@ func (r *UdpTransport) serve(ctx context.Context, socket net.PacketConn) {
 	}
 }
 
-func (r *UdpTransport) Receive() <-chan []byte {
+func (r *LoRaUdp) Receive() <-chan []byte {
 	return r.ch
 }
 
-func (r *UdpTransport) Send([]byte) error {
+func (r *LoRaUdp) Send([]byte) error {
 	return nil
 }

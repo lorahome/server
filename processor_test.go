@@ -3,10 +3,14 @@ package main
 import (
 	"testing"
 
-	"github.com/lorahome/server/mocks"
-	"github.com/lorahome/server/registry"
+	"github.com/lorahome/server/devices"
+	"github.com/lorahome/server/transport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	url = "something"
 )
 
 func TestParseId(t *testing.T) {
@@ -29,18 +33,18 @@ func TestParseId(t *testing.T) {
 func TestProcessPacket(t *testing.T) {
 	// End to end test of packet processing with mock device
 	// Add device class
-	registry.RegisterDeviceClass(mocks.Url, mocks.NewMockDevice)
+	devices.RegisterDeviceClass(url, devices.NewMockDevice)
 	// Add device
 	cfg := map[interface{}]interface{}{
 		"id":  0x1234,
-		"url": mocks.Url,
+		"url": url,
 	}
-	rawDev, err := registry.RegisterDevice(cfg)
+	rawDev, err := devices.RegisterDevice(cfg)
 	require.NoError(t, err)
-	dev := rawDev.(*mocks.MockDevice)
+	dev := rawDev.(*devices.MockDevice)
 
 	// "Send" packet to device
-	source := mocks.NewMockTransport()
+	source := transport.NewMockLoRaTransport()
 	packet := []byte{0x34, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // id
 		0x00, 0x01, 0x02, 0x03, // some payload
 	}
