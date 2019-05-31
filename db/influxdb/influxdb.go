@@ -9,7 +9,8 @@ import (
 )
 
 type InfluxDB struct {
-	Config influxClient.HTTPConfig `mapstructure:",squash"`
+	Config          influxClient.HTTPConfig `mapstructure:",squash"`
+	DefaultDatabase string
 
 	client  influxClient.Client
 	enabled bool

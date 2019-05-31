@@ -9,3 +9,4 @@ influxdb:
   # useragent: InfluxDBClient
   # timeout: 0
   # insecureskipverify: false
+  defaultDatabase: test
