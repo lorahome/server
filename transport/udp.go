@@ -14,12 +14,18 @@ type LoRaUdp struct {
 	Listen        string
 	MaxPacketSize int
 
-	ch chan []byte
+	ch      chan []byte
+	enabled bool
 }
 
 func NewLoRaUdp(cfg interface{}) (LoRaTransport, error) {
 	udp := &LoRaUdp{
 		ch: make(chan []byte, 1),
+	}
+
+	// If no configuration present - bypass mode
+	if cfg == nil {
+		return udp, nil
 	}
 
 	// Map / verify configuration
@@ -30,20 +36,27 @@ func NewLoRaUdp(cfg interface{}) (LoRaTransport, error) {
 	if udp.MaxPacketSize == 0 {
 		udp.MaxPacketSize = 1024
 	}
+	udp.enabled = true
 
 	return udp, err
 }
 
 func (r *LoRaUdp) Run(ctx context.Context) error {
+	// Simple blocking call for bypass mode
+	if !r.enabled {
+		<-ctx.Done()
+		return nil
+	}
+
 	// Create UDP listening socket
 	socket, err := net.ListenPacket("udp", r.Listen)
 	if err != nil {
 		return err
 	}
 	glog.Infof("Server started at %s", r.Listen)
-
-	// Receive packets
+	// Start receiver
 	go r.serve(ctx, socket)
+
 	// Wait until context canceled
 	<-ctx.Done()
 	socket.Close()
@@ -72,5 +85,11 @@ func (r *LoRaUdp) Receive() <-chan []byte {
 }
 
 func (r *LoRaUdp) Send([]byte) error {
+	// Just do nothing in bypass mode
+	if !r.enabled {
+		return nil
+	}
+
+	// TODO: implement send
 	return nil
 }

@@ -51,6 +51,9 @@ func main() {
 
 	// Start UDP transport
 	caps.udp, err = transport.NewLoRaUdp(cfg.Udp)
+	if err != nil {
+		glog.Fatalf("LoRa UDP transport failed: %v", err)
+	}
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
 		err := caps.udp.Run(ctx)
