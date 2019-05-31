@@ -1,9 +1,11 @@
 package devices
 
 import (
+	"github.com/lorahome/server/db/influxdb"
 	"github.com/lorahome/server/transport"
 )
 
 type Capabilities struct {
-	Udp transport.LoRaTransport
+	Udp      transport.LoRaTransport
+	InfluxDb *influxdb.InfluxDB
 }

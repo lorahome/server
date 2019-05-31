@@ -4,3 +4,8 @@ udp:
 
 influxdb:
   addr: http://localhost:8086
+  # username:
+  # password:
+  # useragent: InfluxDBClient
+  # timeout: 0
+  # insecureskipverify: false

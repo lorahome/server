@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
+	"github.com/lorahome/server/db/influxdb"
 	"github.com/lorahome/server/devices"
 	"github.com/lorahome/server/transport"
 
@@ -29,10 +30,10 @@ func main() {
 		glog.Fatalf("Unable to read config file %s: %v", *flagConfig, err)
 	}
 
-	// Setup capabilities for devices
-	caps := &devices.Capabilities{}
+	// Setup services
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
+	caps := &devices.Capabilities{}
 
 	// Start UDP transport
 	caps.Udp, err = transport.NewLoRaUdp(cfg.Udp)
@@ -48,6 +49,12 @@ func main() {
 		glog.Info("UDP terminated")
 		wg.Done()
 	}(&wg)
+
+	// Start InfluxDB
+	caps.InfluxDb, err = influxdb.NewInfluxDB(cfg.InfluxDb)
+	if err != nil {
+		glog.Fatalf("InfluxDB failed: %v", err)
+	}
 
 	// Load / register devices
 	err = devices.LoadFromFile(*flagDevices, caps)
