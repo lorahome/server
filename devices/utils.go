@@ -9,7 +9,7 @@ import (
 )
 
 // LoadFromFile reads and parses device definitions from YAML
-func LoadFromFile(filename string) error {
+func LoadFromFile(filename string, caps *Capabilities) error {
 	// Read file
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -30,7 +30,7 @@ func LoadFromFile(filename string) error {
 	// Register all devices from yaml
 	for url, list := range devices {
 		for _, device := range list {
-			_, err := RegisterDevice(url, device)
+			_, err := RegisterDevice(url, device, caps)
 			if err != nil {
 				glog.Fatalf("Unable to register device: %v", err)
 			}

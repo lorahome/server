@@ -7,7 +7,7 @@ import (
 	"github.com/lorahome/server/devices"
 )
 
-func processPacket(caps *devices.Capabilities, packet []byte) error {
+func processPacket(packet []byte) error {
 	// Parse device id
 	deviceId, err := parseDeviceId(packet)
 	if err != nil {
@@ -19,7 +19,7 @@ func processPacket(caps *devices.Capabilities, packet []byte) error {
 		return fmt.Errorf("device with id 0x%x does not exist", deviceId)
 	}
 	// Call device handler to process packet
-	return device.ProcessMessage(caps, packet[8:])
+	return device.ProcessMessage(packet[8:])
 }
 
 func parseDeviceId(packet []byte) (uint64, error) {

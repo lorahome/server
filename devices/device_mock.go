@@ -16,7 +16,7 @@ type MockDevice struct {
 	Error                 error
 }
 
-func NewMockDevice(cfg interface{}) (Device, error) {
+func NewMockDevice(cfg interface{}, _ *Capabilities) (Device, error) {
 	ret := &MockDevice{}
 	ret.Url = Url
 	ret.ClassName = ClassName
@@ -26,7 +26,7 @@ func NewMockDevice(cfg interface{}) (Device, error) {
 	return ret, err
 }
 
-func (m *MockDevice) ProcessMessage(caps *Capabilities, packet []byte) error {
+func (m *MockDevice) ProcessMessage(packet []byte) error {
 	m.ProcessMessageHistory = append(m.ProcessMessageHistory, packet)
 	return m.Error
 }

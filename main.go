@@ -29,12 +29,6 @@ func main() {
 		glog.Fatalf("Unable to read config file %s: %v", *flagConfig, err)
 	}
 
-	// Load / register devices
-	err = devices.LoadFromFile(*flagDevices)
-	if err != nil {
-		glog.Fatalf("Unable to load devices: %v", err)
-	}
-
 	// Setup capabilities for devices
 	caps := &devices.Capabilities{}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,6 +49,12 @@ func main() {
 		wg.Done()
 	}(&wg)
 
+	// Load / register devices
+	err = devices.LoadFromFile(*flagDevices, caps)
+	if err != nil {
+		glog.Fatalf("Unable to load devices: %v", err)
+	}
+
 	// Setup SIGTERM / SIGINT
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
@@ -64,7 +64,7 @@ func main() {
 		var err error
 		select {
 		case packet := <-caps.Udp.Receive():
-			err = processPacket(caps, packet)
+			err = processPacket(packet)
 		case sig := <-signalCh:
 			glog.Infof("Got SIG %v", sig)
 			// Cancel context and wait until all jobs done

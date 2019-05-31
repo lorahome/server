@@ -17,13 +17,13 @@ func RegisterDeviceClass(url string, dev DeviceCreateFunc) {
 	deviceClasses[url] = dev
 }
 
-func RegisterDevice(url string, cfg interface{}) (Device, error) {
+func RegisterDevice(url string, cfg interface{}, caps *Capabilities) (Device, error) {
 	if url == "" {
 		return nil, errors.New("URL should not be empty")
 	}
 	// Create instance of device class
 	if createFunc, ok := deviceClasses[url]; ok {
-		device, err := createFunc(cfg)
+		device, err := createFunc(cfg, caps)
 		if err != nil {
 			return nil, err
 		}
