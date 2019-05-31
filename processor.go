@@ -7,7 +7,7 @@ import (
 	"github.com/lorahome/server/devices"
 )
 
-func processPacket(caps devices.Capabilities, packet []byte) error {
+func processPacket(caps *devices.Capabilities, packet []byte) error {
 	// Parse device id
 	deviceId, err := parseDeviceId(packet)
 	if err != nil {

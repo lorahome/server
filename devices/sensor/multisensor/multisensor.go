@@ -39,7 +39,7 @@ func NewMultiSensor(cfg interface{}) (devices.Device, error) {
 	return dev, err
 }
 
-func (s *MultiSensor) ProcessMessage(caps devices.Capabilities, encrypted []byte) error {
+func (s *MultiSensor) ProcessMessage(caps *devices.Capabilities, encrypted []byte) error {
 	// Decrypt message
 	glog.Infof("%s: Got %d bytes message", s.Name, len(encrypted))
 	decrypted, err := encoding.AESdecryptCBC(s.keyBytes, encrypted)

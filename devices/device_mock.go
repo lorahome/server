@@ -26,7 +26,7 @@ func NewMockDevice(cfg interface{}) (Device, error) {
 	return ret, err
 }
 
-func (m *MockDevice) ProcessMessage(caps Capabilities, packet []byte) error {
+func (m *MockDevice) ProcessMessage(caps *Capabilities, packet []byte) error {
 	m.ProcessMessageHistory = append(m.ProcessMessageHistory, packet)
 	return m.Error
 }

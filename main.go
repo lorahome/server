@@ -19,15 +19,6 @@ import (
 var flagConfig = flag.String("config", "config.yaml", "Config filename")
 var flagDevices = flag.String("devices", "devices.yaml", "Devices filename")
 
-type RuntimeCapabilities struct {
-	udp transport.LoRaTransport
-}
-
-func (rc *RuntimeCapabilities) SendPacket(packet []byte) error {
-	// TODO: actual send
-	return nil
-}
-
 func main() {
 	flag.Set("logtostderr", "true")
 	flag.Parse()
@@ -45,18 +36,18 @@ func main() {
 	}
 
 	// Setup capabilities for devices
-	caps := &RuntimeCapabilities{}
+	caps := &devices.Capabilities{}
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
 	// Start UDP transport
-	caps.udp, err = transport.NewLoRaUdp(cfg.Udp)
+	caps.Udp, err = transport.NewLoRaUdp(cfg.Udp)
 	if err != nil {
 		glog.Fatalf("LoRa UDP transport failed: %v", err)
 	}
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
-		err := caps.udp.Run(ctx)
+		err := caps.Udp.Run(ctx)
 		if err != nil {
 			glog.Fatalf("UDP failed: %v", err)
 		}
@@ -72,7 +63,7 @@ func main() {
 		// Wait for packet from any transport
 		var err error
 		select {
-		case packet := <-caps.udp.Receive():
+		case packet := <-caps.Udp.Receive():
 			err = processPacket(caps, packet)
 		case sig := <-signalCh:
 			glog.Infof("Got SIG %v", sig)
