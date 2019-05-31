@@ -1,0 +1,6 @@
+udp:
+  listen: :4444
+  maxPacketSize: 1024
+
+influxdb:
+  addr: http://localhost:8086

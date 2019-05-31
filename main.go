@@ -17,6 +17,7 @@ import (
 )
 
 var flagConfig = flag.String("config", "config.yaml", "Config filename")
+var flagDevices = flag.String("devices", "devices.yaml", "Devices filename")
 
 type RuntimeCapabilities struct {
 	udp transport.LoRaTransport
@@ -36,12 +37,11 @@ func main() {
 	if err != nil {
 		glog.Fatalf("Unable to read config file %s: %v", *flagConfig, err)
 	}
-	// Register known devices from config (already been joined)
-	for _, d := range cfg.Devices {
-		_, err := devices.RegisterDevice(d)
-		if err != nil {
-			glog.Fatalf("Unable to register device: %v", err)
-		}
+
+	// Load / register devices
+	err = devices.LoadFromFile(*flagDevices)
+	if err != nil {
+		glog.Fatalf("Unable to load devices: %v", err)
 	}
 
 	// Setup capabilities for devices
@@ -73,8 +73,14 @@ func main() {
 			err = processPacket(caps, packet)
 		case sig := <-signalCh:
 			glog.Infof("Got SIG %v", sig)
+			// Cancel context and wait until all jobs done
 			cancel()
 			wg.Wait()
+			// Save devices configuration
+			err := devices.SaveToFile(*flagDevices)
+			if err != nil {
+				glog.Fatalf("Save devices config failed: %v", err)
+			}
 			glog.Info("Gracefully terminated")
 			glog.Flush()
 			return
@@ -86,5 +92,3 @@ func main() {
 	}
 
 }
-
-// cfg.Devices = registry.GetDevicesForConfigSave()

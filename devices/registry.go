@@ -17,29 +17,23 @@ func RegisterDeviceClass(url string, dev DeviceCreateFunc) {
 	deviceClasses[url] = dev
 }
 
-func RegisterDevice(cfg interface{}) (Device, error) {
-	if cfg == nil {
-		return nil, errors.New("Invalid config")
-	}
-	// Find device class by URL
-	cfgMap := cfg.(map[interface{}]interface{})
-	url, ok := cfgMap["url"].(string)
-	if !ok {
-		return nil, errors.New("Invalid config: 'url' not found")
+func RegisterDevice(url string, cfg interface{}) (Device, error) {
+	if url == "" {
+		return nil, errors.New("URL should not be empty")
 	}
 	// Create instance of device class
-	creator, ok := deviceClasses[url]
-	if !ok {
+	if createFunc, ok := deviceClasses[url]; ok {
+		device, err := createFunc(cfg)
+		if err != nil {
+			return nil, err
+		}
+		deviceList[device.GetId()] = device
+		glog.Infof("Added %s device: %s (%d)",
+			device.GetClassName(), device.GetName(), device.GetId())
+		return device, nil
+	} else {
 		return nil, fmt.Errorf("Unknown device class '%s'", url)
 	}
-	dev, err := creator(cfg)
-	if err != nil {
-		return nil, err
-	}
-	deviceList[dev.GetId()] = dev
-	glog.Infof("Added %s device: %s (%d)", dev.GetClassName(), dev.GetName(), dev.GetId())
-
-	return dev, err
 }
 
 func GetDeviceById(id uint64) Device {
