@@ -7,10 +7,12 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/lorahome/server/db/influxdb"
 	"github.com/lorahome/server/devices"
+	"github.com/lorahome/server/mqtt"
 	"github.com/lorahome/server/transport"
 
 	// Link these devices into server app
@@ -46,7 +48,6 @@ func main() {
 		if err != nil {
 			glog.Fatalf("UDP failed: %v", err)
 		}
-		glog.Info("UDP terminated")
 		wg.Done()
 	}(&wg)
 
@@ -56,7 +57,19 @@ func main() {
 		glog.Fatalf("InfluxDB failed: %v", err)
 	}
 
+	// Start MQTT client
+	caps.Mqtt, err = mqtt.NewMqttClient(cfg.Mqtt)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		err := caps.Mqtt.Run(ctx)
+		if err != nil {
+			glog.Fatalf("MQTT failed: %v", err)
+		}
+		wg.Done()
+	}(&wg)
+
 	// Load / register devices
+	time.Sleep(100 * time.Millisecond) // Find better solution?
 	err = devices.LoadFromFile(*flagDevices, caps)
 	if err != nil {
 		glog.Fatalf("Unable to load devices: %v", err)

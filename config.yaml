@@ -2,11 +2,18 @@ udp:
   listen: :4444
   maxPacketSize: 1024
 
+mqtt:
+  broker: tcp://localhost:1883
+  user:
+  password:
+  cleansession: true
+  clientid: LoRaHomeServer
+
 influxdb:
   addr: http://localhost:8086
-  # username:
-  # password:
-  # useragent: InfluxDBClient
-  # timeout: 0
-  # insecureskipverify: false
+  username:
+  password:
+  useragent: InfluxDBClient
+  timeout: 0
+  insecureskipverify: false
   defaultDatabase: test

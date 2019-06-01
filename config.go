@@ -11,6 +11,7 @@ type Config struct {
 	Devices  []interface{}
 	InfluxDb interface{}
 	Udp      interface{}
+	Mqtt     interface{}
 }
 
 // ConfigLoadFromFile reads and parses YAML configuration from file

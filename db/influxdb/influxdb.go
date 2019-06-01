@@ -20,6 +20,7 @@ func NewInfluxDB(cfg interface{}) (*InfluxDB, error) {
 	db := &InfluxDB{}
 	if cfg == nil {
 		// Bypass mode - influxdb disabled
+		glog.Info("InfluxDB is not enabled")
 		return db, nil
 	}
 
@@ -34,8 +35,10 @@ func NewInfluxDB(cfg interface{}) (*InfluxDB, error) {
 		db.enabled = true
 	}
 
-	duration, resp, err := db.client.Ping(1 * time.Second)
-	glog.Infof("InfluxDB %s OK, received in %v", resp, duration)
+	_, resp, err := db.client.Ping(1 * time.Second)
+	if err == nil {
+		glog.Infof("InfluxDB started, version %s", resp)
+	}
 
 	return db, err
 }

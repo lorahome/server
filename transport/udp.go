@@ -44,6 +44,7 @@ func NewLoRaUdp(cfg interface{}) (LoRaTransport, error) {
 func (r *LoRaUdp) Run(ctx context.Context) error {
 	// Simple blocking call for bypass mode
 	if !r.enabled {
+		glog.Info("UDP is not enabled")
 		<-ctx.Done()
 		return nil
 	}
@@ -53,7 +54,7 @@ func (r *LoRaUdp) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	glog.Infof("Server started at %s", r.Listen)
+	glog.Infof("UDP server started at %s", r.Listen)
 	// Start receiver
 	go r.serve(ctx, socket)
 
