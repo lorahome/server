@@ -66,16 +66,17 @@ func (m *MqttClient) Run(ctx context.Context) error {
 	return nil
 }
 
-func (m *MqttClient) Publish(topic string, payload []byte, qos byte, retained bool) error {
-	if token := b.client.Publish(topic, qos, retained, value); token.Wait() && token.Error() != nil {
+func (m *MqttClient) Publish(topic string, payload interface{}, qos byte, retained bool) error {
+	if token := m.client.Publish(topic, qos, retained, payload); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
+	glog.Infof("MQTT Publish: %s -> %+v", topic, payload)
 
 	return nil
 }
 
 // PublishRetain is simplified version of Publish intended to use by sensors
-func (m *MqttClient) PublishRetain(topic string, payload []byte) error {
+func (m *MqttClient) PublishRetain(topic string, payload interface{}) error {
 	return m.Publish(topic, payload, 0, true)
 }
 

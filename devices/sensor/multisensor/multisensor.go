@@ -15,6 +15,7 @@ import (
 	"github.com/lorahome/server/db/influxdb"
 	"github.com/lorahome/server/devices"
 	"github.com/lorahome/server/encoding"
+	"github.com/lorahome/server/mqtt"
 )
 
 const (
@@ -27,11 +28,13 @@ type MultiSensor struct {
 	// Public parameters (being saved into YAML)
 	devices.BaseDevice `yaml:",inline" mapstructure:",squash"`
 	InfluxDb           *influxDbConfig
+	Mqtt               *mqttConfig
 	Key                string
 
 	// Private
-	keyBytes  []byte
-	capInflux *influxdb.InfluxDB
+	keyBytes     []byte
+	influxClient *influxdb.InfluxDB
+	mqttClient   *mqtt.MqttClient
 }
 
 type influxDbConfig struct {
@@ -40,9 +43,21 @@ type influxDbConfig struct {
 }
 
 type measurementsConfig struct {
-	Temperature string
-	Humidity    string
-	Battery     string
+	Temperature    string
+	Humidity       string
+	BatteryVoltage string
+}
+
+type mqttConfig struct {
+	Topics *mqttTopicsConfig
+	Retain bool
+	Qos    byte
+}
+
+type mqttTopicsConfig struct {
+	Temperature    string
+	Humidity       string
+	BatteryVoltage string
 }
 
 func NewMultiSensor(cfg interface{}, caps *devices.Capabilities) (devices.Device, error) {
@@ -52,7 +67,8 @@ func NewMultiSensor(cfg interface{}, caps *devices.Capabilities) (devices.Device
 			Url:       Url,
 			ClassName: ClassName,
 		},
-		capInflux: caps.InfluxDb,
+		influxClient: caps.InfluxDb,
+		mqttClient:   caps.Mqtt,
 	}
 	err := mapstructure.Decode(cfg, dev)
 	if err != nil {
@@ -73,8 +89,8 @@ func NewMultiSensor(cfg interface{}, caps *devices.Capabilities) (devices.Device
 			idb.Measurements = &measurementsConfig{}
 		}
 		msr := idb.Measurements
-		if msr.Battery == "" {
-			msr.Battery = "battery"
+		if msr.BatteryVoltage == "" {
+			msr.BatteryVoltage = "battery_voltage"
 		}
 		if msr.Temperature == "" {
 			msr.Temperature = "temperature"
@@ -104,10 +120,9 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 		return err
 	}
 
-	// TODO: implement something
 	glog.Infof("Got update from '%s':", s.Name)
 
-	// Emit InfluxDB measurements
+	// Prepare InfluxDB measurement points
 	points, err := influxClient.NewBatchPoints(influxClient.BatchPointsConfig{
 		Precision: "s",
 		Database:  s.InfluxDb.Database,
@@ -121,9 +136,11 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 		"class_name": s.ClassName,
 	}
 	timestamp := time.Now()
-	// Temperature
+
+	// Process temperature
 	if ms.Temperature != nil {
 		glog.Infof("\tTemperature %vC %vF", ms.Temperature.ValueC, ms.Temperature.ValueF)
+		// Influx
 		point, err := influxClient.NewPoint(
 			s.InfluxDb.Measurements.Temperature,
 			tags,
@@ -137,10 +154,22 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 			return err
 		}
 		points.AddPoint(point)
+		// MQTT
+		if s.Mqtt.Topics.Temperature != "" {
+			err = s.mqttClient.Publish(s.Mqtt.Topics.Temperature,
+				fmt.Sprintf("%.1f", ms.Temperature.ValueC),
+				s.Mqtt.Qos,
+				s.Mqtt.Retain,
+			)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	// Humidity
 	if ms.Humidity != nil {
-		glog.Infof("\tHumidity %.2f%%", ms.Humidity.Value)
+		glog.Infof("\tHumidity %.0f%%", ms.Humidity.Value)
+		// Influx
 		point, err := influxClient.NewPoint(
 			s.InfluxDb.Measurements.Humidity,
 			tags,
@@ -153,13 +182,24 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 			return err
 		}
 		points.AddPoint(point)
+		// MQTT
+		if s.Mqtt.Topics.Humidity != "" {
+			s.mqttClient.Publish(s.Mqtt.Topics.Humidity,
+				fmt.Sprintf("%.0f", ms.Humidity.Value),
+				s.Mqtt.Qos,
+				s.Mqtt.Retain,
+			)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	// Add battery voltage
 	if ms.Battery != nil {
 		volts := float64(ms.Battery.VoltageMv) / 1000
 		glog.Infof("\tBattery %1.2fV", volts)
 		point, err := influxClient.NewPoint(
-			s.InfluxDb.Measurements.Battery,
+			s.InfluxDb.Measurements.BatteryVoltage,
 			tags,
 			map[string]interface{}{
 				"voltage": volts,
@@ -170,9 +210,20 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 			return err
 		}
 		points.AddPoint(point)
+		// MQTT
+		if s.Mqtt.Topics.BatteryVoltage != "" {
+			s.mqttClient.Publish(s.Mqtt.Topics.BatteryVoltage,
+				fmt.Sprintf("%0.2f", volts),
+				s.Mqtt.Qos,
+				s.Mqtt.Retain,
+			)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	// Emit measurements
-	s.capInflux.Write(points)
+	s.influxClient.Write(points)
 
 	return nil
 }
