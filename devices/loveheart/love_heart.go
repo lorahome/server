@@ -117,9 +117,10 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 
 	// Print values
 	temp := float32(ls.Temperature / 100)
+	volts := float64(ls.VoltageMv) / 1000
 	glog.Infof("\tTemperature %.1fC", temp)
 	glog.Infof("\tHumidity %d%%", ls.Humidity)
-	glog.Infof("\tBattery %.2fV", ls.Voltage)
+	glog.Infof("\tBattery %.2fV", volts)
 	glog.Infof("\tLight ALS %d", ls.LightAls)
 	glog.Infof("\tLight White %d", ls.LightWhite)
 
@@ -174,7 +175,7 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 		s.InfluxDb.Measurements.BatteryVoltage,
 		tags,
 		map[string]interface{}{
-			"voltage": ls.Voltage,
+			"voltage": volts,
 		},
 		timestamp,
 	)
@@ -184,7 +185,7 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 	points.AddPoint(point)
 
 	s.mqttClient.Publish(s.Mqtt.Topics.BatteryVoltage,
-		fmt.Sprintf("%.2f", ls.Voltage),
+		fmt.Sprintf("%.2f", volts),
 		s.Mqtt.Qos,
 		s.Mqtt.Retain,
 	)
