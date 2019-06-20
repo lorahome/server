@@ -17,6 +17,7 @@ import (
 
 	// Link these devices into server app
 	_ "github.com/lorahome/server/devices/sensor/multisensor"
+	_ "github.com/lorahome/server/devices/loveheart"
 )
 
 var flagConfig = flag.String("config", "config.yaml", "Config filename")
