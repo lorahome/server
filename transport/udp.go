@@ -13,9 +13,12 @@ import (
 type LoRaUdp struct {
 	Listen        string
 	MaxPacketSize int
+	Gateway       string
 
-	ch      chan []byte
-	enabled bool
+	ch                     chan []byte
+	enabled                bool
+	resolvedGatewayAddress *net.UDPAddr
+	socket                 net.PacketConn
 }
 
 func NewLoRaUdp(cfg interface{}) (LoRaTransport, error) {
@@ -38,6 +41,14 @@ func NewLoRaUdp(cfg interface{}) (LoRaTransport, error) {
 	}
 	udp.enabled = true
 
+	// Resolve LoRa gateway address, if any
+	if udp.Gateway != "" {
+		udp.resolvedGatewayAddress, err = net.ResolveUDPAddr("udp", udp.Gateway)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return udp, err
 }
 
@@ -50,25 +61,26 @@ func (r *LoRaUdp) Run(ctx context.Context) error {
 	}
 
 	// Create UDP listening socket
-	socket, err := net.ListenPacket("udp", r.Listen)
+	var err error
+	r.socket, err = net.ListenPacket("udp", r.Listen)
 	if err != nil {
 		return err
 	}
 	glog.Infof("UDP server started at %s", r.Listen)
 	// Start receiver
-	go r.serve(ctx, socket)
+	go r.serve(ctx)
 
 	// Wait until context canceled
 	<-ctx.Done()
-	socket.Close()
+	r.socket.Close()
 
 	return nil
 }
 
-func (r *LoRaUdp) serve(ctx context.Context, socket net.PacketConn) {
+func (r *LoRaUdp) serve(ctx context.Context) {
 	buf := make([]byte, r.MaxPacketSize)
 	for {
-		n, _, err := socket.ReadFrom(buf)
+		n, _, err := r.socket.ReadFrom(buf)
 		if err != nil {
 			// Terminate goroutine when listener closed
 			if strings.Contains(err.Error(), "use of closed network connection") {
@@ -85,12 +97,12 @@ func (r *LoRaUdp) Receive() <-chan []byte {
 	return r.ch
 }
 
-func (r *LoRaUdp) Send([]byte) error {
+func (r *LoRaUdp) Send(packet []byte) error {
 	// Just do nothing in bypass mode
-	if !r.enabled {
+	if !r.enabled || r.resolvedGatewayAddress == nil {
 		return nil
 	}
 
-	// TODO: implement send
-	return nil
+	_, err := r.socket.WriteTo(packet, r.resolvedGatewayAddress)
+	return err
 }
