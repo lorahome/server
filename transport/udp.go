@@ -104,5 +104,9 @@ func (r *LoRaUdp) Send(packet []byte) error {
 	}
 
 	_, err := r.socket.WriteTo(packet, r.resolvedGatewayAddress)
+	if err == nil {
+		glog.Infof("UDP: Sent %d bytes back to LoRa gateway.", len(packet))
+	}
+
 	return err
 }
