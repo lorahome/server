@@ -2,6 +2,7 @@ package mqtt
 
 import (
 	"context"
+	"sync"
 
 	pmqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/golang/glog"
@@ -15,9 +16,17 @@ type MqttClient struct {
 	CleanSession bool
 	Clientid     string
 
-	client  pmqtt.Client
-	options *pmqtt.ClientOptions
-	enabled bool
+	client                pmqtt.Client
+	options               *pmqtt.ClientOptions
+	enabled               bool
+	subscriptions         map[string][]chan *MqttMessage
+	wildcardSubscriptions []chan *MqttMessage
+	lock                  sync.Mutex
+}
+
+type MqttMessage struct {
+	Topic string
+	Value string
 }
 
 func NewMqttClient(cfg interface{}) (*MqttClient, error) {
@@ -66,11 +75,26 @@ func (m *MqttClient) Run(ctx context.Context) error {
 	return nil
 }
 
+func (m *MqttClient) Subscribe(topic string, qos byte) (<-chan *MqttMessage, error) {
+	// Subscribe to given topic
+	if token := m.client.Subscribe(topic, qos, nil); token.Wait() && token.Error() != nil {
+		return nil, token.Error()
+	}
+
+	// Create channel and add it to subscribers list
+	ch := make(chan *MqttMessage, 1)
+	m.lock.Lock()
+	m.subscriptions[topic] = append(m.subscriptions[topic], ch)
+	m.lock.Unlock()
+
+	return ch, nil
+}
+
 func (m *MqttClient) Publish(topic string, payload interface{}, qos byte, retained bool) error {
 	if token := m.client.Publish(topic, qos, retained, payload); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
-	glog.Infof("MQTT Publish: %s -> %+v", topic, payload)
+	glog.Infof("MQTT <-- %v: '%v'", topic, payload)
 
 	return nil
 }
@@ -81,5 +105,18 @@ func (m *MqttClient) PublishRetain(topic string, payload interface{}) error {
 }
 
 func (m *MqttClient) onMessage(client pmqtt.Client, pmsg pmqtt.Message) {
-	glog.Infof("MQTT: %v %v", pmsg.Topic(), pmsg.Payload())
+	msg := &MqttMessage{
+		Topic: string(pmsg.Topic()),
+		Value: string(pmsg.Payload()),
+	}
+	glog.Infof("MQTT --> %v: '%v'", msg.Topic, msg.Value)
+	m.lock.Lock()
+	channels, ok := m.subscriptions[msg.Topic]
+	m.lock.Unlock()
+	if !ok {
+		return
+	}
+	for _, ch := range channels {
+		ch <- msg
+	}
 }
