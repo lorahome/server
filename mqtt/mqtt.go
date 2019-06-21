@@ -90,6 +90,28 @@ func (m *MqttClient) Subscribe(topic string, qos byte) (<-chan *MqttMessage, err
 	return ch, nil
 }
 
+func (m *MqttClient) SubscribeMultiple(topics []string, qos byte) (<-chan *MqttMessage, error) {
+	// Subscribe to given topics
+	topicsMap := map[string]byte{}
+	for _, t := range topics {
+		topicsMap[t] = qos
+	}
+	if token := m.client.SubscribeMultiple(topicsMap, nil); token.Wait() && token.Error() != nil {
+		return nil, token.Error()
+	}
+
+	// Create channel and add it to subscribers list
+	ch := make(chan *MqttMessage, 1)
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for _, t := range topics {
+		m.subscriptions[t] = append(m.subscriptions[t], ch)
+	}
+
+	return ch, nil
+}
+
 func (m *MqttClient) Publish(topic string, payload interface{}, qos byte, retained bool) error {
 	if token := m.client.Publish(topic, qos, retained, payload); token.Wait() && token.Error() != nil {
 		return token.Error()
