@@ -1,8 +1,11 @@
 package multisensor
 
 import (
+	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang/glog"
@@ -15,6 +18,7 @@ import (
 	"github.com/lorahome/server/devices"
 	"github.com/lorahome/server/encoding"
 	"github.com/lorahome/server/mqtt"
+	"github.com/lorahome/server/transport"
 )
 
 const (
@@ -29,11 +33,18 @@ type LoveHeart struct {
 	InfluxDb           *influxDbConfig
 	Mqtt               *mqttConfig
 	Key                string
+	SequenceSend       uint32
+	SequenceRecv       uint32
 
 	// Private
 	keyBytes     []byte
 	influxClient *influxdb.InfluxDB
 	mqttClient   *mqtt.MqttClient
+	transport    transport.LoRaTransport
+
+	// Current motion / animation state
+	lastMotionDetected time.Time
+	animationEnabled   bool
 }
 
 type influxDbConfig struct {
@@ -47,6 +58,8 @@ type measurementsConfig struct {
 	LightALS       string
 	LightWhite     string
 	BatteryVoltage string
+	Charging       string
+	Animation      string
 }
 
 type mqttConfig struct {
@@ -61,6 +74,10 @@ type mqttTopicsConfig struct {
 	BatteryVoltage string
 	LightAls       string
 	LightWhite     string
+
+	// Control topics
+	Animation string
+	Motion    string
 }
 
 func NewLoveHeart(cfg interface{}, caps *devices.Capabilities) (devices.Device, error) {
@@ -72,6 +89,7 @@ func NewLoveHeart(cfg interface{}, caps *devices.Capabilities) (devices.Device, 
 		},
 		influxClient: caps.InfluxDb,
 		mqttClient:   caps.Mqtt,
+		transport:    caps.Udp,
 	}
 	err := mapstructure.Decode(cfg, dev)
 	if err != nil {
@@ -82,6 +100,40 @@ func NewLoveHeart(cfg interface{}, caps *devices.Capabilities) (devices.Device, 
 	dev.keyBytes, err = hex.DecodeString(dev.Key)
 
 	return dev, err
+}
+
+func (s *LoveHeart) Start(ctx context.Context) error {
+	// var err error
+	// motionTopicsCh <-chan *mqtt.MqttMessage
+	motionCh, err := s.mqttClient.Subscribe(s.Mqtt.Topics.Motion, 0)
+	if err != nil {
+		return err
+	}
+	animationCh, err := s.mqttClient.Subscribe(s.Mqtt.Topics.Animation, 0)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case msg := <-motionCh:
+				val, _ := strconv.Atoi(msg.Value)
+				if val > 0 {
+					s.lastMotionDetected = time.Now()
+					glog.Infof("Loveheart: last motion recorded %v", s.lastMotionDetected)
+				}
+			case msg := <-animationCh:
+				val, _ := strconv.Atoi(msg.Value)
+				s.animationEnabled = !(val == 0)
+				glog.Infof("LoveHeart: global animation state -> %v", s.animationEnabled)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return err
 }
 
 func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
@@ -98,7 +150,39 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 		return err
 	}
 
-	glog.Infof("Got update from '%s':", s.Name)
+	glog.Infof("Got status from '%s'", s.Name)
+
+	timestamp := time.Now()
+	hour, _, _ := timestamp.Clock()
+
+	// Send response back to device while it is listening to radio
+	payload := make([]byte, 256)
+	s.SequenceSend++
+	animation := false
+	if hour > 8 && hour < 21 &&
+		time.Since(s.lastMotionDetected) < 15*time.Minute &&
+		s.animationEnabled {
+
+		animation = true
+	}
+	resp := &pb.LoveHeartStatusResponse{
+		// Play animation only when enabled globally, there is motion in living room
+		// and only with 8:00 - 21:00 timeframe
+		EnableAnimation: animation,
+		Sequence:        s.SequenceSend,
+		Magic:           0xddeeff,
+	}
+	glog.Info("Sending response:")
+	glog.Infof("\tanimation: %v", animation)
+	serializedResp, _ := proto.Marshal(resp)
+	encryptedResp, _ := encoding.AESencryptCBC(s.keyBytes, serializedResp)
+	binary.LittleEndian.PutUint64(payload, s.Id)
+	totalLen := len(encryptedResp) + 8
+	copy(payload[8:], encryptedResp)
+	err = s.transport.Send(payload[:totalLen])
+	if err != nil {
+		return err
+	}
 
 	// Prepare InfluxDB measurement points
 	points, err := influxClient.NewBatchPoints(influxClient.BatchPointsConfig{
@@ -113,16 +197,18 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 		"name":       s.Name,
 		"class_name": s.ClassName,
 	}
-	timestamp := time.Now()
 
 	// Print values
 	temp := float32(ls.Temperature / 100)
 	volts := float64(ls.VoltageMv) / 1000
+	glog.Info("Values:")
 	glog.Infof("\tTemperature %.1fC", temp)
 	glog.Infof("\tHumidity %d%%", ls.Humidity)
 	glog.Infof("\tBattery %.2fV", volts)
 	glog.Infof("\tLight ALS %d", ls.LightAls)
 	glog.Infof("\tLight White %d", ls.LightWhite)
+	glog.Infof("\tCharging %v", ls.Charging)
+	glog.Infof("\tAnimation %v", ls.Animation)
 
 	// Process temperature
 	point, err := influxClient.NewPoint(
@@ -238,8 +324,42 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 		return err
 	}
 
+	// Charging / animation
+	point, err = influxClient.NewPoint(
+		s.InfluxDb.Measurements.Charging,
+		tags,
+		map[string]interface{}{
+			"value": boolToInt(ls.Charging),
+		},
+		timestamp,
+	)
+	if err != nil {
+		return err
+	}
+	points.AddPoint(point)
+
+	point, err = influxClient.NewPoint(
+		s.InfluxDb.Measurements.Animation,
+		tags,
+		map[string]interface{}{
+			"value": boolToInt(ls.Animation),
+		},
+		timestamp,
+	)
+	if err != nil {
+		return err
+	}
+	points.AddPoint(point)
+
 	// Emit measurements
 	return s.influxClient.Write(points)
+}
+
+func boolToInt(val bool) int {
+	if val {
+		return 1
+	}
+	return 0
 }
 
 func init() {

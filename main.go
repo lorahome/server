@@ -16,6 +16,7 @@ import (
 	"github.com/lorahome/server/transport"
 
 	// Link these devices into server app
+	_ "github.com/lorahome/server/devices/loveheart"
 	_ "github.com/lorahome/server/devices/sensor/multisensor"
 	_ "github.com/lorahome/server/devices/loveheart"
 )
