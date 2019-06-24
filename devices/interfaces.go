@@ -1,5 +1,9 @@
 package devices
 
+import (
+	"context"
+)
+
 type DeviceCreateFunc func(cfg interface{}, caps *Capabilities) (Device, error)
 
 type Device interface {
@@ -8,5 +12,6 @@ type Device interface {
 	GetClassName() string
 	GetUrl() string
 
+	Start(ctx context.Context) error
 	ProcessMessage(packet []byte) error
 }

@@ -75,6 +75,9 @@ func main() {
 		glog.Fatalf("Unable to load devices: %v", err)
 	}
 
+	// Start all devices
+	devices.StartAllDevices(ctx)
+
 	// Setup SIGTERM / SIGINT
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)

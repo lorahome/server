@@ -1,6 +1,7 @@
 package devices
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -40,5 +41,16 @@ func GetDeviceById(id uint64) Device {
 	if device, ok := deviceList[id]; ok {
 		return device
 	}
+	return nil
+}
+
+func StartAllDevices(ctx context.Context) error {
+	for _, d := range deviceList {
+		err := d.Start(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

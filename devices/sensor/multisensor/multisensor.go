@@ -1,6 +1,7 @@
 package multisensor
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -104,6 +105,10 @@ func NewMultiSensor(cfg interface{}, caps *devices.Capabilities) (devices.Device
 	dev.keyBytes, err = hex.DecodeString(dev.Key)
 
 	return dev, err
+}
+
+func (m *MultiSensor) Start(ctx context.Context) error {
+	return nil
 }
 
 func (s *MultiSensor) ProcessMessage(encrypted []byte) error {

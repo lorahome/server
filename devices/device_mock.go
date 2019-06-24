@@ -1,6 +1,8 @@
 package devices
 
 import (
+	"context"
+
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -24,6 +26,10 @@ func NewMockDevice(cfg interface{}, _ *Capabilities) (Device, error) {
 	err := mapstructure.Decode(cfg, ret)
 
 	return ret, err
+}
+
+func (m *MockDevice) Start(ctx context.Context) error {
+	return nil
 }
 
 func (m *MockDevice) ProcessMessage(packet []byte) error {
