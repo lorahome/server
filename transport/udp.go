@@ -47,6 +47,8 @@ func NewLoRaUdp(cfg interface{}) (LoRaTransport, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		glog.Info("UDP gateway address unset, packets will not be delivered to devices back")
 	}
 
 	return udp, err
@@ -105,7 +107,7 @@ func (r *LoRaUdp) Send(packet []byte) error {
 
 	_, err := r.socket.WriteTo(packet, r.resolvedGatewayAddress)
 	if err == nil {
-		glog.Infof("UDP: Sent %d bytes back to LoRa gateway.", len(packet))
+		glog.Infof("UDP LoRa gateway: %v <-- %d bytes", r.resolvedGatewayAddress, len(packet))
 	}
 
 	return err
