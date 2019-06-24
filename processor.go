@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/golang/glog"
-
 	"github.com/lorahome/server/devices"
 )
 
