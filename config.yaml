@@ -1,6 +1,7 @@
 udp:
   listen: :4444
   maxPacketSize: 1024
+  gateway:
 
 mqtt:
   broker: tcp://localhost:1883
