@@ -158,16 +158,16 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 	// Send response back to device while it is listening to radio
 	payload := make([]byte, 256)
 	s.SequenceSend++
+	// Play animation only when enabled globally, there is motion in living room
+	// and only with 9:00 - 21:00 timeframe
 	animation := false
-	if hour > 8 && hour < 21 &&
+	if hour >= 9 && hour < 21 &&
 		time.Since(s.lastMotionDetected) < 15*time.Minute &&
 		s.animationEnabled {
 
 		animation = true
 	}
 	resp := &pb.LoveHeartStatusResponse{
-		// Play animation only when enabled globally, there is motion in living room
-		// and only with 8:00 - 21:00 timeframe
 		EnableAnimation: animation,
 		Sequence:        s.SequenceSend,
 		Magic:           0xddeeff,
