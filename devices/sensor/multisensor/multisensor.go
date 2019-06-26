@@ -50,9 +50,10 @@ type measurementsConfig struct {
 }
 
 type mqttConfig struct {
-	Topics *mqttTopicsConfig
-	Retain bool
-	Qos    byte
+	Topics        *mqttTopicsConfig
+	Retain        bool
+	Qos           byte
+	ImperialUnits bool
 }
 
 type mqttTopicsConfig struct {
@@ -127,108 +128,84 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 
 	glog.Infof("Got update from '%s':", s.Name)
 
-	// Prepare InfluxDB measurement points
-	points, err := influxClient.NewBatchPoints(influxClient.BatchPointsConfig{
+	// Prepare InfluxDB points / MQTT topics
+	influxPoints := map[string]influxdb.KV{}
+	mqttTopics := map[string]string{}
+	if ms.Temperature != nil {
+		if s.InfluxDb.Measurements.Temperature != "" {
+			influxPoints[s.InfluxDb.Measurements.Temperature] = influxdb.KV{
+				"c": ms.Temperature.ValueC,
+				"f": ms.Temperature.ValueF,
+			}
+		}
+		if s.Mqtt.Topics.Temperature != "" {
+			if s.Mqtt.ImperialUnits {
+				mqttTopics[s.Mqtt.Topics.Temperature] = fmt.Sprintf("%.1f", ms.Temperature.ValueF)
+			} else {
+				mqttTopics[s.Mqtt.Topics.Temperature] = fmt.Sprintf("%.1f", ms.Temperature.ValueC)
+			}
+		}
+		glog.Infof("\tTemperature %vC, %vF", ms.Temperature.ValueC, ms.Temperature.ValueF)
+	}
+	if ms.Humidity != nil {
+		if s.InfluxDb.Measurements.Humidity != "" {
+			influxPoints[s.InfluxDb.Measurements.Humidity] = influxdb.KV{
+				"value": ms.Humidity.Value,
+			}
+		}
+		if s.Mqtt.Topics.Humidity != "" {
+			mqttTopics[s.Mqtt.Topics.Humidity] = fmt.Sprintf("%.0f", ms.Humidity.Value)
+		}
+		glog.Infof("\tHumidity %v", ms.Humidity.Value)
+	}
+	if ms.Battery != nil {
+		volts := float64(ms.Battery.VoltageMv) / 1000
+		if s.InfluxDb.Measurements.BatteryVoltage != "" {
+			influxPoints[s.InfluxDb.Measurements.BatteryVoltage] = influxdb.KV{
+				"voltage": volts,
+			}
+		}
+		if s.Mqtt.Topics.BatteryVoltage != "" {
+			mqttTopics[s.Mqtt.Topics.BatteryVoltage] = fmt.Sprintf("%0.2f", volts)
+		}
+		glog.Infof("\tBattery Voltage %v", volts)
+	}
+
+	// Emit all points
+	batchPoints, err := influxClient.NewBatchPoints(influxClient.BatchPointsConfig{
 		Precision: "s",
 		Database:  s.InfluxDb.Database,
 	})
 	if err != nil {
 		return err
 	}
-	tags := map[string]string{
+	influxTags := map[string]string{
 		"device_id":  fmt.Sprintf("%d", s.Id),
-		"name":       s.Name,
 		"class_name": s.ClassName,
+		"name":       s.Name,
 	}
 	timestamp := time.Now()
+	for measurement, points := range influxPoints {
+		point, err := influxClient.NewPoint(
+			measurement,
+			influxTags,
+			points,
+			timestamp,
+		)
+		if err != nil {
+			return err
+		}
+		batchPoints.AddPoint(point)
+	}
+	s.influxClient.Write(batchPoints)
 
-	// Process temperature
-	if ms.Temperature != nil {
-		glog.Infof("\tTemperature %vC %vF", ms.Temperature.ValueC, ms.Temperature.ValueF)
-		// Influx
-		point, err := influxClient.NewPoint(
-			s.InfluxDb.Measurements.Temperature,
-			tags,
-			map[string]interface{}{
-				"c": ms.Temperature.ValueC,
-				"f": ms.Temperature.ValueF,
-			},
-			timestamp,
-		)
+	// Publish all MQTT topics
+	for topic, value := range mqttTopics {
+		s.mqttClient.Publish(topic, value, s.Mqtt.Qos, s.Mqtt.Retain)
 		if err != nil {
-			return err
-		}
-		points.AddPoint(point)
-		// MQTT
-		if s.Mqtt.Topics.Temperature != "" {
-			err = s.mqttClient.Publish(s.Mqtt.Topics.Temperature,
-				fmt.Sprintf("%.1f", ms.Temperature.ValueC),
-				s.Mqtt.Qos,
-				s.Mqtt.Retain,
-			)
-			if err != nil {
-				return err
-			}
+			glog.Errorf("MQTT Publish failed: %v", err)
 		}
 	}
-	// Humidity
-	if ms.Humidity != nil {
-		glog.Infof("\tHumidity %.0f%%", ms.Humidity.Value)
-		// Influx
-		point, err := influxClient.NewPoint(
-			s.InfluxDb.Measurements.Humidity,
-			tags,
-			map[string]interface{}{
-				"value": ms.Humidity.Value,
-			},
-			timestamp,
-		)
-		if err != nil {
-			return err
-		}
-		points.AddPoint(point)
-		// MQTT
-		if s.Mqtt.Topics.Humidity != "" {
-			s.mqttClient.Publish(s.Mqtt.Topics.Humidity,
-				fmt.Sprintf("%.0f", ms.Humidity.Value),
-				s.Mqtt.Qos,
-				s.Mqtt.Retain,
-			)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	// Add battery voltage
-	if ms.Battery != nil {
-		volts := float64(ms.Battery.VoltageMv) / 1000
-		glog.Infof("\tBattery %1.2fV", volts)
-		point, err := influxClient.NewPoint(
-			s.InfluxDb.Measurements.BatteryVoltage,
-			tags,
-			map[string]interface{}{
-				"voltage": volts,
-			},
-			timestamp,
-		)
-		if err != nil {
-			return err
-		}
-		points.AddPoint(point)
-		// MQTT
-		if s.Mqtt.Topics.BatteryVoltage != "" {
-			s.mqttClient.Publish(s.Mqtt.Topics.BatteryVoltage,
-				fmt.Sprintf("%0.2f", volts),
-				s.Mqtt.Qos,
-				s.Mqtt.Retain,
-			)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	// Emit measurements
-	s.influxClient.Write(points)
 
 	return nil
 }

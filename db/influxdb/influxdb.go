@@ -16,6 +16,8 @@ type InfluxDB struct {
 	enabled bool
 }
 
+type KV map[string]interface{}
+
 func NewInfluxDB(cfg interface{}) (*InfluxDB, error) {
 	db := &InfluxDB{}
 	if cfg == nil {
