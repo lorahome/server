@@ -199,7 +199,7 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 	}
 
 	// Print values
-	temp := float32(ls.Temperature / 100)
+	temp := float32(ls.Temperature) / 100
 	volts := float64(ls.VoltageMv) / 1000
 	glog.Info("Values:")
 	glog.Infof("\tTemperature %.1fC", temp)
