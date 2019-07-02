@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/belyalov/OpenIOT-protobufs/go/sensor"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	influxClient "github.com/influxdata/influxdb1-client/v2"
+	pb "github.com/lorahome/devices/go/proto/sensor"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/lorahome/server/db/influxdb"
@@ -46,6 +46,7 @@ type influxDbConfig struct {
 type measurementsConfig struct {
 	Temperature    string
 	Humidity       string
+	AmbientLight   string
 	BatteryVoltage string
 }
 
@@ -57,9 +58,11 @@ type mqttConfig struct {
 }
 
 type mqttTopicsConfig struct {
-	Temperature    string
-	Humidity       string
-	BatteryVoltage string
+	Temperature       string
+	Humidity          string
+	AmbientLight      string
+	AmbientLightWhite string
+	BatteryVoltage    string
 }
 
 func NewMultiSensor(cfg interface{}, caps *devices.Capabilities) (devices.Device, error) {
@@ -158,6 +161,21 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 		}
 		glog.Infof("\tHumidity %v", ms.Humidity.Value)
 	}
+	if ms.AmbientLight != nil {
+		if s.InfluxDb.Measurements.AmbientLight != "" {
+			influxPoints[s.InfluxDb.Measurements.AmbientLight] = influxdb.KV{
+				"als":   ms.AmbientLight.Value,
+				"white": ms.AmbientLight.WhiteValue,
+			}
+		}
+		if s.Mqtt.Topics.AmbientLight != "" {
+			mqttTopics[s.Mqtt.Topics.AmbientLight] = fmt.Sprintf("%.0f", ms.AmbientLight.Value)
+		}
+		if s.Mqtt.Topics.AmbientLightWhite != "" {
+			mqttTopics[s.Mqtt.Topics.AmbientLightWhite] = fmt.Sprintf("%.0f", ms.AmbientLight.WhiteValue)
+		}
+		glog.Infof("\tAmbientLight %v (white %v)", ms.AmbientLight.Value, ms.AmbientLight.WhiteValue)
+	}
 	if ms.Battery != nil {
 		volts := float64(ms.Battery.VoltageMv) / 1000
 		if s.InfluxDb.Measurements.BatteryVoltage != "" {
@@ -171,7 +189,7 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 		glog.Infof("\tBattery Voltage %v", volts)
 	}
 
-	// Emit all points
+	// Emit all InfluxDB points
 	batchPoints, err := influxClient.NewBatchPoints(influxClient.BatchPointsConfig{
 		Precision: "s",
 		Database:  s.InfluxDb.Database,
@@ -197,7 +215,10 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 		}
 		batchPoints.AddPoint(point)
 	}
-	s.influxClient.Write(batchPoints)
+	err = s.influxClient.Write(batchPoints)
+	if err != nil {
+		return err
+	}
 
 	// Publish all MQTT topics
 	for topic, value := range mqttTopics {
