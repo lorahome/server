@@ -121,7 +121,6 @@ func (s *LoveHeart) Start(ctx context.Context) error {
 				val, _ := strconv.Atoi(msg.Value)
 				if val > 0 {
 					s.lastMotionDetected = time.Now()
-					glog.Infof("Loveheart: last motion recorded %v", s.lastMotionDetected)
 				}
 			case msg := <-animationCh:
 				val, _ := strconv.Atoi(msg.Value)
