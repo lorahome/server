@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/golang/glog"
+
 	"github.com/lorahome/server/devices"
 )
 
@@ -13,6 +15,8 @@ func processPacket(packet []byte) error {
 	if err != nil {
 		return err
 	}
+
+	glog.Infof("Got packet from %x", deviceId)
 
 	// Lookup for device handler
 	device := devices.GetDeviceById(deviceId)

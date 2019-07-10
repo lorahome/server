@@ -169,10 +169,10 @@ func (s *MultiSensor) ProcessMessage(encrypted []byte) error {
 			}
 		}
 		if s.Mqtt.Topics.AmbientLight != "" {
-			mqttTopics[s.Mqtt.Topics.AmbientLight] = fmt.Sprintf("%.0f", ms.AmbientLight.Value)
+			mqttTopics[s.Mqtt.Topics.AmbientLight] = fmt.Sprintf("%d", ms.AmbientLight.Value)
 		}
 		if s.Mqtt.Topics.AmbientLightWhite != "" {
-			mqttTopics[s.Mqtt.Topics.AmbientLightWhite] = fmt.Sprintf("%.0f", ms.AmbientLight.WhiteValue)
+			mqttTopics[s.Mqtt.Topics.AmbientLightWhite] = fmt.Sprintf("%d", ms.AmbientLight.WhiteValue)
 		}
 		glog.Infof("\tAmbientLight %v (white %v)", ms.AmbientLight.Value, ms.AmbientLight.WhiteValue)
 	}
