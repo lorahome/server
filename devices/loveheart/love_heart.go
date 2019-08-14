@@ -58,6 +58,7 @@ type measurementsConfig struct {
 	LightALS       string
 	LightWhite     string
 	BatteryVoltage string
+	BatteryPercent string
 	Charging       string
 	Animation      string
 }
@@ -72,6 +73,7 @@ type mqttTopicsConfig struct {
 	Temperature    string
 	Humidity       string
 	BatteryVoltage string
+	BatteryPercent string
 	LightAls       string
 	LightWhite     string
 
@@ -158,9 +160,9 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 	payload := make([]byte, 256)
 	s.SequenceSend++
 	// Play animation only when enabled globally, there is motion in living room
-	// and only with 9:00 - 21:00 timeframe
+	// and only with 10:00 - 20:00 timeframe
 	animation := false
-	if hour >= 9 && hour < 21 &&
+	if hour >= 10 && hour < 20 &&
 		time.Since(s.lastMotionDetected) < 15*time.Minute &&
 		s.animationEnabled {
 
@@ -203,7 +205,7 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 	glog.Info("Values:")
 	glog.Infof("\tTemperature %.1fC", temp)
 	glog.Infof("\tHumidity %d%%", ls.Humidity)
-	glog.Infof("\tBattery %.2fV", volts)
+	glog.Infof("\tBattery %.2fV, %d%%", volts, ls.BatteryPercents)
 	glog.Infof("\tLight ALS %d", ls.LightAls)
 	glog.Infof("\tLight White %d", ls.LightWhite)
 	glog.Infof("\tCharging %v", ls.Charging)
@@ -271,6 +273,29 @@ func (s *LoveHeart) ProcessMessage(encrypted []byte) error {
 
 	s.mqttClient.Publish(s.Mqtt.Topics.BatteryVoltage,
 		fmt.Sprintf("%.2f", volts),
+		s.Mqtt.Qos,
+		s.Mqtt.Retain,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Battery percentage
+	point, err = influxClient.NewPoint(
+		s.InfluxDb.Measurements.BatteryPercent,
+		tags,
+		map[string]interface{}{
+			"percent": ls.BatteryPercents,
+		},
+		timestamp,
+	)
+	if err != nil {
+		return err
+	}
+	points.AddPoint(point)
+
+	s.mqttClient.Publish(s.Mqtt.Topics.BatteryPercent,
+		fmt.Sprintf("%d", ls.BatteryPercents),
 		s.Mqtt.Qos,
 		s.Mqtt.Retain,
 	)
