@@ -30,7 +30,9 @@ type MqttMessage struct {
 }
 
 func NewMqttClient(cfg interface{}) (*MqttClient, error) {
-	m := &MqttClient{}
+	m := &MqttClient{
+		subscriptions: make(map[string][]chan *MqttMessage),
+	}
 	if cfg == nil {
 		// Bypass mode - mqtt disabled
 		return m, nil

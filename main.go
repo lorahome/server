@@ -16,6 +16,7 @@ import (
 	"github.com/lorahome/server/transport"
 
 	// Link these devices into server app
+	_ "github.com/lorahome/server/devices/light/led_strip"
 	_ "github.com/lorahome/server/devices/sensor/multisensor"
 )
 
@@ -76,7 +77,10 @@ func main() {
 	}
 
 	// Start all devices
-	devices.StartAllDevices(ctx)
+	err = devices.StartAllDevices(ctx)
+	if err != nil {
+		glog.Fatalf("Unable to start devices: %v", err)
+	}
 
 	// Setup SIGTERM / SIGINT
 	signalCh := make(chan os.Signal, 1)

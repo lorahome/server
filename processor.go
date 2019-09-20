@@ -16,7 +16,7 @@ func processPacket(packet []byte) error {
 		return err
 	}
 
-	glog.Infof("Got packet from %x", deviceId)
+	glog.Infof("Got packet from 0x%x (%d)", deviceId, deviceId)
 
 	// Lookup for device handler
 	device := devices.GetDeviceById(deviceId)
